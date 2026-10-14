@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  /* Neutral slate scale */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  /* Emerald / primary green */
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+
+  /* Teal for balance card */
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+
+  /* Soft accent colors from the reference UI */
+  --color-mint-50: #e8f8f2;
+  --color-mint-100: #c7ede0;
+  --color-mint-200: #a0dec7;
+  --color-mint-300: #74c9a9;
+  --color-mint-400: #4db18b;
+
+  --color-cream-50: #fffbf0;
+  --color-cream-100: #fff4d9;
+  --color-cream-200: #ffeab3;
+  --color-cream-300: #ffdb80;
+  --color-cream-400: #ffcc52;
+
+  --color-peach-50: #fff6f3;
+  --color-peach-100: #ffe8e1;
+  --color-peach-200: #ffd3c4;
+  --color-peach-300: #ffb49b;
+  --color-peach-400: #ff9270;
+
+  /* Semantic colors */
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #f3f4f8;
+  color: var(--color-slate-800);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border: none;
+  text-align: left;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-emerald-400);
+  outline-offset: 2px;
+}
+
+/* Utility helpers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

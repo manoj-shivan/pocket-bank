@@ -1,0 +1,428 @@
+# Retro — AI Project Specification
+
+> Central source of truth for project structure, business rules, file-change conventions, agent context, and UI component design rules. All agents and contributors should read this before making changes.
+
+---
+
+## 1. Project Identity
+
+| Attribute | Value |
+|-----------|-------|
+| Name | Retro — Personal Finance Management Dashboard |
+| Purpose | Recruiter-ready portfolio project demonstrating modern React/TypeScript frontend engineering |
+| Reference UI | Card-based finance dashboard with sidebar, KPI cards, quick-overview charts, balance card, activity chart, recent contacts |
+| Target Runtime | Vite dev server + Node.js/Express mock API |
+| Demo Audience | Recruiters, hiring managers, technical interviews |
+
+---
+
+## 2. Project Structure Rules
+
+### 2.1 Top-level layout
+
+```text
+New-Proj/
+├── .devin/                      # Devin/agent config and project rules
+│   └── AI_PROJECT_SPEC.md       # This file
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # Lint, typecheck, test, build
+├── public/                      # Static assets, mock images
+├── server/                      # Express mock API
+│   ├── index.ts
+│   ├── routes/
+│   └── data/
+├── src/
+│   ├── app/                     # App-level wiring (store, router, providers)
+│   ├── features/                # Domain-driven feature modules
+│   ├── components/              # Reusable, feature-agnostic UI
+│   ├── services/                # API clients and endpoint helpers
+│   ├── hooks/                   # Shared custom hooks
+│   ├── layouts/                 # Page shells (AppLayout, AuthLayout)
+│   ├── types/                   # Global/shared TypeScript types
+│   ├── utils/                   # Pure helper functions
+│   └── tests/                   # Test setup and E2E specs
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── tsconfig.app.json
+├── tsconfig.node.json
+├── playwright.config.ts
+└── README.md
+```
+
+### 2.2 Feature folder convention
+
+Every feature folder **must** follow this shape:
+
+```text
+src/features/<feature>/
+├── api/                         # Feature-specific API calls
+│   └── getTransactions.ts
+├── components/                  # Feature-only components
+│   └── TransactionList.tsx
+├── hooks/                       # Feature-only hooks
+│   └── useTransactions.ts
+├── slices/                      # Redux slices (if needed)
+│   └── transactionsSlice.ts
+├── thunks/                      # Async thunks (if not in slice)
+├── selectors/                   # Memoized selectors
+├── types/                       # Feature-local types
+├── utils/                       # Feature-local helpers
+├── schemas/                     # Zod schemas for forms
+├── __tests__/                   # Feature-level tests
+└── index.ts                     # Public feature export barrel
+```
+
+### 2.3 File naming rules
+
+- React components: `PascalCase.tsx`.
+- Hooks: `camelCase.ts`, prefix with `use`.
+- Redux slices: `featureNameSlice.ts`.
+- Thunks: `featureNameThunks.ts` (or co-located in slice).
+- Selectors: `featureNameSelectors.ts`.
+- Utilities: `camelCase.ts`.
+- Test files: co-located as `*.test.ts(x)` or `*.spec.ts(x)`, or under `__tests__`.
+- Constants: `SCREAMING_SNAKE_CASE` inside `UPPER_SNAKE_CASE.ts` files.
+- Barrel files: `index.ts` for clean public exports only.
+
+---
+
+## 3. Business Rules
+
+### 3.1 Dashboard
+
+- The dashboard shows aggregated data for the **current calendar month** by default.
+- KPI cards display percentage change vs the **previous calendar month**.
+- Negative changes render in red; positive changes render in green.
+- The balance card displays the user's primary virtual card number, holder name, and expiry.
+- The 30-day activity chart shows cumulative cash-flow (income - expense) per day.
+
+### 3.2 Transactions
+
+- A transaction has one of two categories: `income` or `expense`.
+- Transaction amounts are stored as numbers in the **base currency (USD)** with two decimal places.
+- Descriptions must be non-empty and ≤ 100 characters.
+- Transactions cannot be dated in the future.
+- Deleting a transaction is **soft-confirm** via modal; deletion updates related dashboard aggregates on next fetch.
+- Filters combine with AND logic (date range AND category AND account AND type).
+- Search matches description or amount text.
+- CSV export uses the **currently applied filters and sort**.
+
+### 3.3 Savings Goals
+
+- A goal has a target amount, current amount, name, and deadline.
+- Progress percentage = `currentAmount / targetAmount * 100`, capped at 100%.
+- Contributions cannot make `currentAmount` exceed `targetAmount` by more than 10% (guard against typos).
+- A completed goal is one where `currentAmount >= targetAmount`.
+- Projected completion date is computed from recent average contribution velocity; hide if no contributions yet.
+
+### 3.4 Authentication & Authorization (JWT Flow)
+
+- Authentication uses **signed JWT access tokens** generated by the Express backend.
+- Token payload includes `userId`, `email`, `role`, and `name`.
+- Tokens expire after 30 minutes to match the session-expiration requirement.
+- The client stores the token in `localStorage` and attaches it to every request via an Axios request interceptor (`Authorization: Bearer <token>`).
+- On app startup the client calls `GET /api/auth/me`; if the token is valid the session is restored, otherwise the user is logged out.
+- Protected routes wait for this verification to finish before redirecting, preventing a login-screen flash on refresh.
+- The API client intercepts `401` and `403` responses, clears the token, and redirects to `/login`.
+- Two roles exist: `user` and `admin`.
+- Admins can see an "Admin" nav item and access `/admin`.
+- Demo credentials: `admin@example.com` / `password`.
+- The JWT secret is hardcoded in `server/config.ts` for the portfolio demo; a real app would use environment variables.
+
+### 3.5 Data integrity
+
+- All IDs are strings (UUIDs generated server-side in mocks).
+- Dates are ISO-8601 strings (`YYYY-MM-DD` for dates, `YYYY-MM-DDTHH:mm:ssZ` for timestamps).
+- Currency formatting uses `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`.
+
+---
+
+## 4. File Change Rules
+
+### 4.1 Before editing
+
+1. Read the relevant feature's `index.ts` to understand public exports.
+2. Read the relevant slice, selectors, and API files.
+3. Check `src/types/` for shared contracts.
+4. Check existing tests so changes remain covered.
+
+### 4.2 While editing
+
+1. Prefer **editing existing files** over creating new ones.
+2. Keep business logic out of components; move to slices, hooks, or utilities.
+3. If a new shared UI component is needed, place it in `src/components/ui/`.
+4. If a component is only used inside one feature, keep it inside that feature's `components/`.
+5. Update the barrel `index.ts` when adding public exports.
+6. Add or update tests for any changed behavior.
+
+### 4.3 After editing
+
+1. Run the affected verification commands (see section 9).
+2. Update this spec if the change introduces a new convention or business rule.
+3. Keep commits atomic: one feature/fix per commit.
+
+### 4.4 Forbidden patterns
+
+- Do not put secrets in source files.
+- Do not disable TypeScript strict mode.
+- Do not use `any` without a comment explaining why.
+- Do not import from feature folders outside their public barrel (`index.ts`).
+- Do not write inline styles; use Tailwind classes or CSS variables.
+- Do not add new runtime dependencies without updating the spec and README.
+
+---
+
+## 5. Agent History & Context
+
+### 5.1 Decisions made
+
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| 2026-10-11 | Project created as "Retro" finance dashboard | Matches recruiter skill matrix and provided UI reference |
+| 2026-10-11 | Tech stack fixed (React 18, Vite, Redux Toolkit, Tailwind, Recharts, RHF+Zod, Vitest, Playwright) | Widely used, easy to explain, strong recruiter signals |
+| 2026-10-11 | Feature-based folder structure | Easier scaling and interview storytelling |
+| 2026-10-11 | Mock Express backend instead of third-party API | Self-contained demo with no external keys |
+| 2026-10-11 | `.devin/AI_PROJECT_SPEC.md` as living rules | Keeps agent context and conventions centralized |
+|| 2026-10-11 | JWT authentication flow with signed access tokens | Demonstrates real token storage, verification, and expiry handling |
+|| 2026-10-11 | Redux entity adapter for transactions | Shows normalized state and scalable CRUD patterns |
+
+### 5.2 Active workstreams
+
+1. **Scaffold + layout**: Create Vite project, Tailwind config, base folder structure, sidebar, top bar.
+2. **Static dashboard**: Match the reference screenshot with realistic mock data.
+3. **State management**: Wire Redux Toolkit slices, thunks, selectors for dashboard and transactions.
+4. **Transactions CRUD**: Table, filters, forms, validation, CSV export.
+5. **Savings goals**: Progress tracking and contributions.
+6. **Auth + protected routes**: Mock login, role-based UI, session expiry.
+7. **Testing + CI/CD**: Unit, integration, E2E tests, GitHub Actions.
+
+### 5.3 Recruiter narrative to preserve
+
+This project is intentionally designed to be explainable in a single interview:
+
+- "I built a finance dashboard to show how I structure a React app by feature."
+- "I used TypeScript strict mode and typed API contracts for safety."
+- "Redux Toolkit handles normalized state with selectors and async thunks."
+- "I focused on UX details: skeletons, empty states, error handling, and accessibility."
+- "Every feature has tests, and the CI pipeline runs lint, typecheck, tests, and build."
+
+---
+
+## 6. UI Component Design Rules
+
+### 6.1 Design tokens (Tailwind)
+
+Use these tokens consistently. Extend `tailwind.config.js` if a token is missing.
+
+| Token | Tailwind class | Usage |
+|-------|----------------|-------|
+| Background | `bg-slate-50` | Page background |
+| Surface | `bg-white` | Cards, panels |
+| Primary | `text-emerald-600`, `bg-emerald-600` | Active nav, positive change, primary actions |
+| Danger | `text-rose-500`, `bg-rose-500` | Negative change, destructive actions |
+| Text primary | `text-slate-900` | Headings, key values |
+| Text secondary | `text-slate-500` | Labels, timestamps |
+| Border | `border-slate-200` | Card borders, dividers |
+| Radius | `rounded-2xl` | Cards, modals |
+| Shadow | `shadow-sm`, `shadow-md` | Cards on hover, modals |
+| Sidebar width | `w-64` | Desktop sidebar |
+
+### 6.2 Component API style
+
+All shared UI components must accept `className`, `aria-label`, and spread rest props safely.
+
+Example:
+
+```tsx
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'danger';
+  isLoading?: boolean;
+}
+
+export function Button({
+  variant = 'primary',
+  isLoading = false,
+  className,
+  children,
+  disabled,
+  ...rest
+}: ButtonProps) {
+  // Implementation
+}
+```
+
+### 6.3 Layout rules
+
+- The app uses a **fixed sidebar + scrollable main area** on desktop.
+- On mobile, the sidebar becomes a **collapsible drawer** with an overlay.
+- All pages have consistent `px-6 py-8` padding inside the main area.
+- Cards use `rounded-2xl bg-white shadow-sm p-6` as the base.
+- Grid layouts: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` for KPIs.
+
+### 6.4 Card anatomy
+
+- Cards have a title in `text-slate-900 font-semibold text-lg`.
+- Secondary text uses `text-slate-500 text-sm`.
+- Value text uses `text-slate-900 font-bold text-2xl`.
+- Change badges are small pills: `rounded-full px-2 py-0.5 text-xs font-medium`.
+
+### 6.5 Accessibility rules
+
+- Every form input must have an associated `<label>`.
+- Buttons must have visible focus rings: `focus-visible:ring-2 focus-visible:ring-emerald-500`.
+- Modals must trap focus and return focus to the trigger on close.
+- Charts must have a descriptive `aria-label` and visible legend/color explanation.
+- Color must not be the only way information is conveyed (add icons/text for positive/negative).
+
+### 6.6 Loading & empty states
+
+- Async components show a `Skeleton` matching the final layout shape.
+- Empty states use the `EmptyState` component with an icon, message, and optional action.
+- Error states show a clear message, retry button, and do **not** crash the page.
+
+---
+
+## 7. Modern Patterns to Showcase
+
+### 7.1 React patterns
+
+- Use functional components and hooks only.
+- Prefer `useReducer`-style Redux slices over scattered local state.
+- Use `useMemo`/`useCallback` only after profiling shows a benefit.
+- Use `React.lazy()` and `Suspense` for route-level code splitting.
+- Keep components focused: container components fetch data, presentational components render UI.
+
+### 7.2 Redux Toolkit patterns
+
+```typescript
+// Slice with entity adapter for normalized state
+import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
+
+const transactionsAdapter = createEntityAdapter<Transaction>({
+  sortComparer: (a, b) => b.date.localeCompare(a.date),
+});
+
+const transactionsSlice = createSlice({
+  name: 'transactions',
+  initialState: transactionsAdapter.getInitialState({
+    status: 'idle',
+    error: null,
+  }),
+  reducers: {},
+  extraReducers: (builder) => {
+    builder.addCase(fetchTransactions.fulfilled, (state, action) => {
+      transactionsAdapter.setAll(state, action.payload);
+      state.status = 'succeeded';
+    });
+  },
+});
+```
+
+### 7.3 API client pattern
+
+```typescript
+import axios from 'axios';
+
+export const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 10000,
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### 7.4 Form pattern
+
+```tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const schema = z.object({
+  description: z.string().min(1).max(100),
+  amount: z.number().positive(),
+  date: z.string().date(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+export function TransactionForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* fields */}
+    </form>
+  );
+}
+```
+
+---
+
+## 8. Quality Gates
+
+### 8.1 Required before committing
+
+- `npm run lint` passes.
+- `npm run typecheck` passes.
+- `npm run test:unit` passes.
+- New code has corresponding tests or a clear reason in the PR description why not.
+
+### 8.2 Required before considering a feature done
+
+- Component renders correctly at `1280px`, `768px`, and `375px` widths.
+- Keyboard-only navigation works for forms, tables, and modals.
+- Loading, empty, and error states are implemented.
+- No `console.log` or `debugger` statements left in production code.
+- README section updated if user-facing behavior changed.
+
+---
+
+## 9. Verification Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server + mock API concurrently
+npm run dev
+
+# Run type checking
+npm run typecheck
+
+# Run linter
+npm run lint
+
+# Run unit + integration tests
+npm run test:unit
+
+# Run E2E tests
+npm run test:e2e
+
+# Build for production
+npm run build
+```
+
+---
+
+## 10. Quick Reference for Agents
+
+- **Need to add a UI element?** Check `src/components/ui/` first; if it is generic, add it there.
+- **Need to change data flow?** Update the relevant feature slice/thunks/selectors, not the component.
+- **Need a new API route?** Add the route in `server/routes/` and the client function in `src/features/<feature>/api/`.
+- **Need a new page?** Add a lazy route in `src/app/router.tsx` and a feature page component.
+- **Need to update tests?** Mirror the folder structure: co-located tests or `__tests__`.
+- **Unsure about a convention?** Ask or update this file.
